@@ -1,7 +1,7 @@
 services:
   - type: web
     name: maas-backend
-    env: docker
+    runtime: docker
     plan: free
     healthCheckPath: /health
     autoDeploy: true
