@@ -15,6 +15,7 @@ pydantic-settings==2.7.1
 # --- Database (PostgreSQL + Async) ---
 sqlalchemy[asyncio]==2.0.36
 asyncpg==0.30.0                    # Async PostgreSQL driver
+aiosqlite==0.20.0                  # Async SQLite driver for Render MVP
 alembic==1.14.1                    # Schema migrations
 
 # --- Redis (Cache + Queue) ---
