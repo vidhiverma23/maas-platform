@@ -1,0 +1,125 @@
+# ============================================================
+# Kubernetes Deployment — AI MaaS Platform
+# ============================================================
+# Production-grade K8s deployment with:
+# - Rolling update strategy (zero-downtime)
+# - Readiness + liveness probes
+# - Resource requests/limits
+# - ConfigMap/Secret references
+# - Anti-affinity for spread across nodes
+# ============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maas-api
+  namespace: maas
+  labels:
+    app: maas-api
+    component: api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: maas-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1           # Add 1 new pod before removing old ones
+      maxUnavailable: 0     # Zero downtime during update
+  template:
+    metadata:
+      labels:
+        app: maas-api
+        component: api
+        version: v1
+    spec:
+      # Spread pods across nodes for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: maas-api
+                topologyKey: kubernetes.io/hostname
+
+      containers:
+        - name: maas-api
+          image: maas-platform:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+              protocol: TCP
+
+          # Environment from ConfigMap and Secret
+          envFrom:
+            - configMapRef:
+                name: maas-config
+            - secretRef:
+                name: maas-secrets
+
+          # Resource management
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+
+          # Liveness: is the process alive?
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Readiness: is the service ready to accept traffic?
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          # Startup probe: give the container time to start
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+
+          # Model storage volume
+          volumeMounts:
+            - name: model-storage
+              mountPath: /app/model_storage
+
+      volumes:
+        - name: model-storage
+          persistentVolumeClaim:
+            claimName: maas-model-storage
+
+---
+# PersistentVolumeClaim for model storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: maas-model-storage
+  namespace: maas
+spec:
+  accessModes:
+    - ReadWriteMany  # Required for multi-pod access
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: azure-file  # Azure Files for RWX support

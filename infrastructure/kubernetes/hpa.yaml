@@ -1,0 +1,61 @@
+# ============================================================
+# Horizontal Pod Autoscaler — AI MaaS Platform
+# ============================================================
+# Automatically scales API pods based on CPU and memory usage.
+# Also includes custom metric scaling for request latency.
+# ============================================================
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: maas-api-hpa
+  namespace: maas
+  labels:
+    app: maas-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: maas-api
+
+  minReplicas: 3
+  maxReplicas: 20
+
+  metrics:
+    # Scale on CPU utilization
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Scale on memory utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+  behavior:
+    # Scale up aggressively (handle traffic spikes)
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 3
+          periodSeconds: 60
+        - type: Percent
+          value: 50
+          periodSeconds: 60
+      selectPolicy: Max
+
+    # Scale down conservatively (avoid flapping)
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Min

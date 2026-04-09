@@ -1,0 +1,63 @@
+# ============================================================
+# Kubernetes Service — AI MaaS Platform
+# ============================================================
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: maas-api-service
+  namespace: maas
+  labels:
+    app: maas-api
+    component: api
+spec:
+  type: ClusterIP
+  selector:
+    matchLabels:
+      app: maas-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: maas-config
+  namespace: maas
+data:
+  APP_ENV: "production"
+  APP_DEBUG: "false"
+  APP_WORKERS: "2"
+  APP_HOST: "0.0.0.0"
+  APP_PORT: "8000"
+  POSTGRES_HOST: "maas-postgres-service"
+  POSTGRES_PORT: "5432"
+  REDIS_HOST: "maas-redis-service"
+  REDIS_PORT: "6379"
+  MODEL_STORAGE_PATH: "/app/model_storage"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  RATE_LIMIT_REQUESTS: "100"
+  RATE_LIMIT_WINDOW_SECONDS: "60"
+  CACHE_TTL_SECONDS: "300"
+  CACHE_ENABLED: "true"
+
+---
+# Secret for sensitive values (values are base64-encoded placeholders)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: maas-secrets
+  namespace: maas
+type: Opaque
+data:
+  # echo -n 'value' | base64
+  POSTGRES_USER: bWFhc191c2Vy                            # maas_user
+  POSTGRES_PASSWORD: bWFhc19zZWNyZXRfcGFzc3dvcmQ=        # maas_secret_password
+  POSTGRES_DB: bWFhc19kYg==                               # maas_db
+  DATABASE_URL: cG9zdGdyZXNxbCthc3luY3BnOi8vbWFhc191c2VyOm1hYXNfc2VjcmV0X3Bhc3N3b3JkQG1hYXMtcG9zdGdyZXMtc2VydmljZTo1NDMyL21hYXNfZGI=
+  REDIS_URL: cmVkaXM6Ly9tYWFzLXJlZGlzLXNlcnZpY2U6NjM3OS8w

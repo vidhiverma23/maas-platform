@@ -1,0 +1,131 @@
+# ============================================================
+# Docker Compose — AI MaaS Platform
+# ============================================================
+# Full local development stack:
+#   - 3x FastAPI replicas (horizontal scaling)
+#   - PostgreSQL (metadata storage)
+#   - Redis (caching + rate limiting)
+#   - Nginx (load balancer)
+#
+# Usage:
+#   docker-compose up --build        # Start all services
+#   docker-compose up --build -d     # Detached mode
+#   docker-compose logs -f api       # Follow API logs
+#   docker-compose down -v           # Stop + remove volumes
+# ============================================================
+
+version: "3.9"
+
+services:
+  # ── PostgreSQL ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: maas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: maas_user
+      POSTGRES_PASSWORD: maas_secret_password
+      POSTGRES_DB: maas_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maas_user -d maas_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - maas-network
+
+  # ── Redis ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: maas-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - maas-network
+
+  # ── FastAPI Application (3 replicas) ─────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      APP_WORKERS: "1"
+      DATABASE_URL: postgresql+asyncpg://maas_user:maas_secret_password@postgres:5432/maas_db
+      POSTGRES_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      MODEL_STORAGE_PATH: /app/model_storage
+      LOG_LEVEL: INFO
+      LOG_FORMAT: json
+      RATE_LIMIT_REQUESTS: "100"
+      RATE_LIMIT_WINDOW_SECONDS: "60"
+      CACHE_TTL_SECONDS: "300"
+      CACHE_ENABLED: "true"
+    volumes:
+      - model_storage:/app/model_storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - maas-network
+
+  # ── Nginx Load Balancer ──────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: maas-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+    networks:
+      - maas-network
+
+# ── Volumes ──────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  model_storage:
+    driver: local
+
+# ── Network ──────────────────────────────────────────────────
+networks:
+  maas-network:
+    driver: bridge

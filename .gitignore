@@ -1,0 +1,49 @@
+# ── Python ───────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# ── Virtual Environment ─────────────────────
+venv/
+.venv/
+env/
+
+# ── IDE ──────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Environment ──────────────────────────────
+.env
+.env.local
+.env.production
+
+# ── Testing ──────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+test.db
+test_model_storage/
+
+# ── Model Storage ────────────────────────────
+model_storage/
+*.pkl
+*.pt
+*.onnx
+*.joblib
+
+# ── Docker ───────────────────────────────────
+docker-compose.override.yml
+
+# ── OS ───────────────────────────────────────
+.DS_Store
+Thumbs.db

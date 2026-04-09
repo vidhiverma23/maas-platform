@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: maas-backend
+    env: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_WORKERS
+        value: "1"
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./model_storage/maas_prod.db
+      - key: REDIS_URL
+        value: ""  # Disables redis cache/rate limiting logic for simple MVP demo
+      - key: MODEL_STORAGE_PATH
+        value: ./model_storage
